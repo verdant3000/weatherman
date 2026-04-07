@@ -17,9 +17,8 @@ pool.on('error', (err) => console.error('[db] Pool error:', err.message));
 
 async function query(sql, params = []) {
   const client = await pool.connect();
-  try {
-    return (await client.query(sql, params)).rows;
-  } finally { client.release(); }
+  try { return (await client.query(sql, params)).rows; }
+  finally { client.release(); }
 }
 
 async function queryOne(sql, params = []) {
@@ -28,9 +27,8 @@ async function queryOne(sql, params = []) {
 
 async function run(sql, params = []) {
   const client = await pool.connect();
-  try {
-    return await client.query(sql, params);
-  } finally { client.release(); }
+  try { return await client.query(sql, params); }
+  finally { client.release(); }
 }
 
 async function migrate() {
@@ -45,10 +43,20 @@ async function migrate() {
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
+  // Extended btsc_readings — now includes rain and pressure
   await run(`CREATE TABLE IF NOT EXISTS btsc_readings (
-    id SERIAL PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL UNIQUE,
-    temp_c REAL, rh_pct REAL, created_at TIMESTAMPTZ DEFAULT NOW()
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL UNIQUE,
+    temp_c REAL,
+    rh_pct REAL,
+    rain_mm REAL,
+    pressure_kpa REAL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
+
+  // Add columns if they don't exist (migration for existing tables)
+  await run(`ALTER TABLE btsc_readings ADD COLUMN IF NOT EXISTS rain_mm REAL`);
+  await run(`ALTER TABLE btsc_readings ADD COLUMN IF NOT EXISTS pressure_kpa REAL`);
 
   await run(`CREATE TABLE IF NOT EXISTS historical_fzl (
     id SERIAL PRIMARY KEY,
@@ -85,7 +93,6 @@ async function migrate() {
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // Indexes
   const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_wx_timestamp ON wx_readings(timestamp)`,
     `CREATE INDEX IF NOT EXISTS idx_wx_station ON wx_readings(station_id)`,
