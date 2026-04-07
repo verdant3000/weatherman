@@ -63,6 +63,10 @@ async function startup() {
 
   await migrate();
 
+  app.listen(PORT, () => { console.log(`\n✅ Running on port ${PORT}`); });
+
+  setTimeout(async () => {
+
   // Initial fetch on startup
   try {
     await fetchAllLocations();
